@@ -1,0 +1,6 @@
+# Generally ignorable files
+*.o
+*~
+
+# Specific executables
+computer/usb_search

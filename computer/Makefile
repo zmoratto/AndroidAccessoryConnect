@@ -1,4 +1,4 @@
-CXXFLAGS += -I/opt/local/include
+CXXFLAGS += -I/opt/local/include -O1 -g
 LDFLAGS += -L/opt/local/lib -lusb-1.0
 
 %.o : %.cc
