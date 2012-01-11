@@ -1,6 +1,8 @@
 # Generally ignorable files
 *.o
 *~
+bin
+gen
 
 # Specific executables
 computer/usb_search
