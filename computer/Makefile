@@ -1,5 +1,16 @@
-CXXFLAGS += -I/opt/local/include -O1 -g
-LDFLAGS += -L/opt/local/lib -lusb-1.0
+CXXFLAGS += -O1 -g
+
+UNAME := $(shell uname)
+
+# Add dependency for libusb
+ifeq ($(UNAME), Linux)
+	CXXFLAGS += -I/usr/include
+	LDFLAGS += -L/usr/lib -lusb-1.0
+endif
+ifeq ($(UNAME), Darwin)
+	CXXFLAGS += -I/opt/local/include
+	LDFLAGS += -L/opt/local/lib -lusb-1.0
+endif
 
 %.o : %.cc
 	$(CXX) -c -o $@ $(CXXFLAGS) $^
