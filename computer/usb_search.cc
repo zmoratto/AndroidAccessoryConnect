@@ -1,5 +1,7 @@
 #include <iostream>
 #include <libusb-1.0/libusb.h>
+#include <cstring>
+#include <cstdlib>
 
 const char* manufacturer = "NASA Ames Research Center";
 const char* model        = "Spheres 1.5";
