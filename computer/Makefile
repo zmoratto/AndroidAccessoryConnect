@@ -16,7 +16,7 @@ endif
 	$(CXX) -c -o $@ $(CXXFLAGS) $^
 
 usb_search: usb_search.o
-	$(CXX) -o $@ $(CXXFLAGS) $(LDFLAGS) $^
+	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
 	rm -f *.o *~ usb_search
