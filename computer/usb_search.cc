@@ -3,12 +3,43 @@
 #include <cstring>
 #include <cstdlib>
 
-const char* manufacturer = "NASA Ames Research Center";
-const char* model        = "Spheres 1.5";
-const char* description  = "Spheres 1.5 Beagle Board";
-const char* version      = "1.5.0";
-const char* uri          = "http://www.nasa.gov";
-const char* serial       = "0000000000000001";
+bool is_android_vendor( uint16_t vid ) {
+  switch (vid) {
+  case 0x0502: // Acer
+  case 0x0b05: // ASUS
+  case 0x413c: // Dell
+  case 0x0489: // Foxconn
+  case 0x091e: // Garmin - Asus
+  case 0x18d1: // Google
+  case 0x109b: // Hisense
+  case 0x0bb4: // HTC
+  case 0x12d1: // Huawei
+  case 0x24e3: // K-Touch
+  case 0x2116: // KT Tech
+  case 0x0482: // Kyocera
+  case 0x17ef: // Lenevo
+  case 0x1004: // LG
+  case 0x22b8: // Motorola
+  case 0x0409: // NEC
+  case 0x2080: // Nook
+  case 0x0955: // Nvidia
+  case 0x2257: // OTGV
+  case 0x10a9: // Pantech
+  case 0x1d4d: // Pegatron
+  case 0x0471: // Philips
+  case 0x04da: // PMC-Sierra
+  case 0x05c6: // Qualcomm
+  case 0x1f53: // SK Telesys
+  case 0x04e8: // Samsung
+  case 0x04dd: // Sharp
+  case 0x0fce: // Sony Ericsson
+  case 0x2340: // Teleepoch
+  case 0x0930: // Toshiba
+  case 0x19d2: // ZTE
+    return true;
+  }
+  return false;
+}
 
 std::string android_state( uint16_t product ) {
   switch (product) {
@@ -82,7 +113,7 @@ libusb_device_handle* find_android_device() {
       exit(1);
     }
 
-    if ( desc.idVendor == 0x18d1 ) {
+    if ( is_android_vendor( desc.idVendor ) ) {
       std::cout << "Found potential android phone ["
                 << android_state(desc.idProduct) << "]\n";
       vendor_id = desc.idVendor;
@@ -101,7 +132,13 @@ libusb_device_handle* find_android_device() {
   return libusb_open_device_with_vid_pid(NULL, vendor_id, product_id);
 }
 
-libusb_device_handle* find_android_accessory() {
+libusb_device_handle*
+find_android_accessory( std::string const& manufacturer,
+			std::string const& model,
+			std::string const& description,
+			std::string const& version,
+			std::string const& uri,
+			std::string const& serial ) {
 
   // Search for VID PID that corresponds to an android in accessory
   libusb_device_handle* devh;
@@ -136,23 +173,23 @@ libusb_device_handle* find_android_accessory() {
 
   // Send indentifying information about ourselves.
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-                           52, 0, 0, (unsigned char*)manufacturer,
-                           strlen(manufacturer)+1, TIMEOUT_MS );
+                           52, 0, 0, (unsigned char*)manufacturer.c_str(),
+                           manufacturer.size(), TIMEOUT_MS );
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-                           52, 0, 1, (unsigned char*)model,
-                           strlen(model)+1, TIMEOUT_MS );
+                           52, 0, 1, (unsigned char*)model.c_str(),
+                           model.size(), TIMEOUT_MS );
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-                           52, 0, 2, (unsigned char*)description,
-                           strlen(description)+1, TIMEOUT_MS );
+                           52, 0, 2, (unsigned char*)description.c_str(),
+                           description.size(), TIMEOUT_MS );
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-                           52, 0, 3, (unsigned char*)version,
-                           strlen(version)+1, TIMEOUT_MS );
+                           52, 0, 3, (unsigned char*)version.c_str(),
+			   version.size(), TIMEOUT_MS );
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-                           52, 0, 4, (unsigned char*)uri,
-                           strlen(uri)+1, TIMEOUT_MS );
+                           52, 0, 4, (unsigned char*)uri.c_str(),
+                           uri.size(), TIMEOUT_MS );
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
-                           52, 0, 5, (unsigned char*)serial,
-                           strlen(serial)+1, TIMEOUT_MS );
+                           52, 0, 5, (unsigned char*)serial.c_str(),
+                           serial.size(), TIMEOUT_MS );
 
   // Request that the phone goes into accessory mode
   libusb_control_transfer( devh, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
@@ -188,7 +225,12 @@ int main( int argc, char **argv ) {
   // Claim a USB interface for I/O
   libusb_device_handle *devh = NULL;
   for ( size_t count = 0; count < 101; count++ ) {
-    devh = find_android_accessory();
+
+    devh = find_android_accessory("NASA Ames Research Center",
+				  "Spheres 1.5",
+				  "Spheres 1.5 Beagle Board",
+				  "1.5.0", "http://www.nasa.gov",
+				  "0000000000000001");
     if ( devh )
       break;
     if ( count == 50 )
@@ -198,6 +240,15 @@ int main( int argc, char **argv ) {
       libusb_exit(NULL);
       return 1;
     }
+
+#if defined __APPLE__
+    // For whatever reason, device detection with libusb on OSX is
+    // extremely slow. Linux is so fast in comparison that I've added
+    // a sleep for that platform.
+#else
+    sleep(1);
+#endif
+
     count++;
   }
 
