@@ -15,7 +15,7 @@ endif
 %.o : %.cc
 	$(CXX) -c -o $@ $(CXXFLAGS) $^
 
-usb_search: usb_search.o
+usb_search: usb_search.o AndroidUSB.o
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
