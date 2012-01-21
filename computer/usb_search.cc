@@ -15,10 +15,20 @@ void interpret_return_value( std::string const& action,
   }
 }
 
+char print_wheel( uint8_t counter ) {
+  switch ( counter & 0x03 ) {
+  case 0: return '|';
+  case 1: return '/';
+  case 2: return '-';
+  case 3: return '\\';
+  }
+  return ' ';
+}
+
 int main( int argc, char **argv ) {
 
   if ( libusb_init(NULL) < 0 ) {
-    std::cout << "Something happened during intialization\n";
+    std::cerr << "Something happened during intialization\n";
     return 1;
   }
 
@@ -26,32 +36,29 @@ int main( int argc, char **argv ) {
 
   // Claim a USB interface for I/O
   libusb_device_handle *devh = NULL;
-  for ( size_t count = 0; count < 101; count++ ) {
-
-    devh = find_android_accessory("NASA Ames Research Center",
-				  "Spheres 1.5",
-				  "Spheres 1.5 Beagle Board",
-				  "1.5.0", "http://www.nasa.gov",
-				  "0000000000000001");
-    if ( devh )
-      break;
-    if ( count == 50 )
-      std::cerr << "Still haven't found device. Are you sure you want to keep searching?\n";
-    if ( count == 100 ) {
-      std::cerr << "Failed to find device. quitting.\n";
-      libusb_exit(NULL);
-      return 1;
-    }
+  {
+    std::cout << "Waiting for android device  " << std::flush;
+    uint8_t counter = 0;
+    while (true) {
+      devh = find_android_accessory("NASA Ames Research Center",
+				    "Spheres 1.5",
+				    "Spheres 1.5 Beagle Board",
+				    "1.5.0", "http://www.nasa.gov",
+				    "0000000000000001");
+      std::cout << "\b" << print_wheel( counter ) << std::flush;
+      if ( devh )
+	break;
 
 #if defined __APPLE__
-    // For whatever reason, device detection with libusb on OSX is
-    // extremely slow. Linux is so fast in comparison that I've added
-    // a sleep for that platform.
+      // For whatever reason, device detection with libusb on OSX is
+      // extremely slow. Linux is so fast in comparison that I've added
+      // a sleep for that platform.
 #else
-    sleep(1);
+      sleep(1);
 #endif
-
-    count++;
+      counter++;
+    }
+    std::cout << "\n\n";
   }
 
   std::cout << "YOU GOT AN ACCESSORY!\n";

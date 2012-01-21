@@ -121,7 +121,6 @@ libusb_device_handle* find_android_device() {
     }
   }
   if (count == i ) {
-    std::cerr << "No android devices found\n";
     libusb_free_device_list(devs, 1);
     return NULL;
   }
