@@ -1,0 +1,45 @@
+package demo;
+
+option java_package = "nasa.demo.proto";
+option java_outer_classname = "SourceProto";
+option optimize_for = LITE_RUNTIME;
+
+message Orientation {
+    required float x = 1;
+    required float y = 2;
+    required float z = 3;
+}
+
+message Position {
+    required float x = 1;
+    required float y = 2;
+    required float z = 3;
+}
+
+message Velocity {
+    required float x = 1;
+    required float y = 2;
+    required float z = 3;
+}
+
+message Acceleration {
+    required float x = 1;
+    required float y = 2;
+    required float z = 3;
+}
+
+message Magnetic {
+    required float x = 1;
+    required float y = 2;
+    required float z = 3;
+}
+
+message OffboardData {
+    required float hour = 1;
+
+    optional Orientation orientation = 2;
+    optional Position position = 3;
+    optional Velocity velocity = 4;
+    optional Acceleration acceleration = 5;
+    optional Magnetic magnetic = 6;
+}

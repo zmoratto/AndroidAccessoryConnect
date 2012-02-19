@@ -1,10 +1,12 @@
-package com.example.UsbIntent;
+package nasa.demo;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.Thread;
+import java.lang.String;
 
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -21,10 +23,12 @@ import android.util.Log;
 import com.android.future.usb.UsbAccessory;
 import com.android.future.usb.UsbManager;
 
+import nasa.demo.proto.SourceProto.OffboardData;
+
 public class UsbAccessoryActivity extends Activity implements Runnable
 {
-    static final String TAG = "UsbIntent";
-    private static final String ACTION_USB_PERMISSION = "com.google.android.DemoKit.action.USB_PERMISSION";
+    static final String TAG = "Demo001";
+    private static final String ACTION_USB_PERMISSION = "nasa.demo.Demo001.action.USB_PERMISSION";
 
     private UsbManager mUsbManager;
     private PendingIntent mPermissionIntent;
@@ -49,7 +53,7 @@ public class UsbAccessoryActivity extends Activity implements Runnable
                                                    UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                             openAccessory(accessory);
                         } else {
-                            Log.d(TAG, "permssion denied for accessory " + accessory);
+                            Log.d(TAG, "permission denied for accessory " + accessory);
                         }
                         mPermissionRequestPending = false;
                     }
@@ -174,55 +178,24 @@ public class UsbAccessoryActivity extends Activity implements Runnable
     // juice, we just wait until there is 16k worth of data to
     // process.
     public void run() {
-        Log.d(TAG, "Started USB listening thread");
-        int ret = 0;
-        byte[] buffer = new byte[16384];
-        int i;
-
-        while (ret >= 0) {
+        byte[] array = new byte[1024];
+        Log.d(TAG, "Started USB listening thread.");
+        while (true) {
             try {
-                ret = mInputStream.read(buffer);
-            } catch (IOException e) {
-                // In case the InputStream has gone null on a disconnect
-                break;
-            }
-
-            i = 0;
-            while ( i < ret ) {
-                int len = ret - i;
-
-                switch (buffer[i]) {
-                case 0x1:
-                    if (len >= 3) {
-                        Log.d(TAG, "Got switch message");
-                    }
-                    i += 3;
-                    break;
-                case 0x4:
-                    if (len >= 3) {
-                        Log.d(TAG, "Got temperature message");
-                    }
-                    i += 3;
-                    break;
-                case 0x5:
-                    if (len >= 3) {
-                        Log.d(TAG, "Got light message");
-                    }
-                    i += 3;
-                    break;
-                case 0x6:
-                    if (len >= 3) {
-                        Log.d(TAG, "Got joystick message");
-                    }
-                    i += 3;
-                    break;
-                default:
-                    Log.d(TAG, "unknown msg: " + buffer[i]);
-                    i = len; // Dump the entire buffer ? HA!
-                    break;
+                int r = mInputStream.read(array);
+                Log.d(TAG, "Got " + r + " bytes.");
+                OffboardData data = OffboardData.parseFrom( new ByteArrayInputStream(array, 0, r) );
+                if ( data.isInitialized() ) {
+                    Log.d(TAG, "Have time: " + data.getHour() );
                 }
-            }
+            } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+                Log.d(TAG, "Invalid protobuf: " + e);
+                continue;
+            } catch (IOException e) {
+                Log.d(TAG, "USB read error: " + e);
+                break;
+            } 
         }
-        Log.d(TAG, "Stopped USB listening thread");
+        Log.d(TAG, "Exiting USB listening thread.");
     }
 }
