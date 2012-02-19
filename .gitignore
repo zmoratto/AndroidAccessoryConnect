@@ -11,3 +11,4 @@ computer/Demo001
 
 # Specific auto generated files
 computer/source.pb.*
+android/Demo001/src/nasa/demo/proto/SourceProto.java
