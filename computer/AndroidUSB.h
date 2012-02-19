@@ -16,10 +16,10 @@ libusb_device_handle* find_android_device();
 // mode.
 libusb_device_handle*
 find_android_accessory( std::string const& manufacturer,
-			std::string const& model,
-			std::string const& description,
-			std::string const& version,
-			std::string const& uri,
-			std::string const& serial );
+                        std::string const& model,
+                        std::string const& description,
+                        std::string const& version,
+                        std::string const& uri,
+                        std::string const& serial );
 
 #endif//__AAC_ANDROID_USB_H__

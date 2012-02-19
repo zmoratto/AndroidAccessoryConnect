@@ -2,6 +2,12 @@
 #include <cstdlib>
 
 #include "AndroidUSB.h"
+#include "source.pb.h"
+
+// This application is a base station for the Demo001 app that runs on
+// android. It's ultimate goal is to read and Xsens and then feed that
+// information via USB to the android phone. The android phone will
+// then pretend to be a ROS node.
 
 void interpret_return_value( std::string const& action,
                              libusb_device_handle* devh,
@@ -25,16 +31,12 @@ char print_wheel( uint8_t counter ) {
   return ' ';
 }
 
-int main( int argc, char **argv ) {
-
+int main( int arc, char **argv ) {
   if ( libusb_init(NULL) < 0 ) {
-    std::cerr << "Something happened during intialization\n";
+    std::cerr << "Failed to initialize libusb\n";
     return 1;
   }
 
-  //libusb_set_debug(NULL, 3);
-
-  // Claim a USB interface for I/O
   libusb_device_handle *devh = NULL;
   {
     std::cout << "Waiting for android device  " << std::flush;
@@ -44,10 +46,9 @@ int main( int argc, char **argv ) {
                                     "Spheres 1.5",
                                     "Spheres 1.5 Beagle Board",
                                     "1.5.0", "http://www.nasa.gov",
-                                    "0000000000000001");
+                                    "0000000000000002");
       std::cout << "\b" << print_wheel( counter ) << std::flush;
-      if ( devh )
-        break;
+      if (devh) break;
 
 #if defined __APPLE__
       // For whatever reason, device detection with libusb on OSX is
@@ -58,10 +59,9 @@ int main( int argc, char **argv ) {
 #endif
       counter++;
     }
+
     std::cout << "\n\n";
   }
-
-  std::cout << "YOU GOT AN ACCESSORY!\n";
 
   uint8_t endpoint_in, endpoint_out;
   // Find more information on this device. What interfaces are available?
@@ -122,74 +122,35 @@ int main( int argc, char **argv ) {
   }
   delete[] config_desc;
 
-  // According to documentation, Interface 0 is supposed to be
-  // standard communications, Interface 1 is for ADB. Let's claim
-  // Interface 0 and pretend to be the ADK dev board.
+  // Interface 0 is supposed to be the one we use for ADK.
   int r = libusb_claim_interface( devh, 0 );
   interpret_return_value("claim the accessories standard interface",
-                         devh, r );
-
-  std::cout << "Entering Bulk Transfer Loop\n";
-  std::cout << "This won't do anything until you have started the DemoKit app on the connected phone.\n";
-  uint8_t message[3];
+                         devh, r);
+  double counter = 0.0;
   int length;
-  uint16_t count = 0;
   while (1) {
-    // Wait for command
-    r = libusb_bulk_transfer( devh, endpoint_in, message, 3, &length, 1 );
+    demo::OffboardData data;
+    data.set_hour(counter);
+
+    std::string array = data.SerializeAsString();
+    //std::string array = "Monkey";
+    //array += "\n";
+
+    r = libusb_bulk_transfer( devh, endpoint_out, (unsigned char*)array.c_str(),
+                              array.size(), &length, 100 );
     if ( r != LIBUSB_SUCCESS &&
          r != LIBUSB_ERROR_TIMEOUT )
-      interpret_return_value( "recieve command", devh, r );
+      interpret_return_value( "write off board", devh, r );
 
-    if ( length > 0 ) {
-      if ( message[0] == 0x2 ) {
-        // Request to write  analog
-        switch( message[1] ) {
-        case 0x0:
-          std::cout << "LED1_RED: " << int(message[2]) << "\n"; break;
-        case 0x1:
-          std::cout << "LED1_GREEN: " << int(message[2]) << "\n"; break;
-        case 0x2:
-          std::cout << "LED1_BLUE: " << int(message[2]) << "\n"; break;
-        case 0x3:
-          std::cout << "LED2_RED: " << int(message[2]) << "\n"; break;
-        case 0x4:
-          std::cout << "LED2_GREEN: " << int(message[2]) << "\n"; break;
-        case 0x5:
-          std::cout << "LED2_BLUE: " << int(message[2]) << "\n"; break;
-        case 0x6:
-          std::cout << "LED3_RED: " << int(message[2]) << "\n"; break;
-        case 0x7:
-          std::cout << "LED3_GREEN: " << int(message[2]) << "\n"; break;
-        case 0x8:
-          std::cout << "LED3_BLUE: " << int(message[2]) << "\n"; break;
-        case 0x10:
-          std::cout << "SRV1: " << int(message[2]) << "\n"; break;
-        case 0x11:
-          std::cout << "SRV2: " << int(message[2]) << "\n"; break;
-        case 0x12:
-          std::cout << "SRV3: " << int(message[2]) << "\n"; break;
-        }
-      } else if ( message[0] == 0x3 ) {
-        // Request we write a relay
-        if ( message[1] == 0x0 )
-          std::cout << "RELAY1: " << int(message[2]) << "\n";
-        else if ( message[1] == 0x1 )
-          std::cout << "RELAY2: " << int(message[2]) << "\n";
-      }
+    if ( array.size() != length ) {
+      std::cerr << "Didn't write entire structure: "
+                << array.size() << " != " << length << std::endl;
+      std::cerr << "Tried to send [" << array << "]\n";
     }
 
-    // Send them a joystick command
-    message[0] = 0x6;
-    message[1] = *((uint8_t*)&count);
-    message[2] = *((uint8_t*)&count + 1);
-    r = libusb_bulk_transfer( devh, endpoint_out, message, 3, &length, 30 );
-    if ( r != LIBUSB_SUCCESS &&
-         r != LIBUSB_ERROR_TIMEOUT )
-      interpret_return_value( "write joystick", devh, r );
-
-    count++;
-  } // End of while loop
+    sleep(1);
+    counter += 0.1;
+  }
 
   // Disconnect
   libusb_unref_device( dev );

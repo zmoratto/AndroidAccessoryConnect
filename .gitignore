@@ -3,6 +3,11 @@
 *~
 bin
 gen
+local.properties
 
 # Specific executables
 computer/usb_search
+computer/Demo001
+
+# Specific auto generated files
+computer/source.pb.*
