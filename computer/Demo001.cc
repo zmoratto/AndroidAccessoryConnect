@@ -1,8 +1,15 @@
 #include <iostream>
+#include <sstream>
+#include <stdio.h>
 #include <cstdlib>
+#include <cmath>
+#include <errno.h>
 
 #include "AndroidUSB.h"
 #include "source.pb.h"
+
+#include "XSens.h"
+#include "XSensCmd.h"
 
 // This application is a base station for the Demo001 app that runs on
 // android. It's ultimate goal is to read and Xsens and then feed that
@@ -30,6 +37,8 @@ char print_wheel( uint8_t counter ) {
   }
   return ' ';
 }
+
+#define PORT_NAME "/dev/ttyUSB0"
 
 int main( int arc, char **argv ) {
   if ( libusb_init(NULL) < 0 ) {
@@ -62,6 +71,23 @@ int main( int arc, char **argv ) {
 
     std::cout << "\n\n";
   }
+
+  kn::XSens xsens(PORT_NAME, 115200);
+
+  xsens.configure();
+  int rc;
+  std::cout << "collect state" << std::endl;
+  if ((rc = xsens.collectDeviceState()) != 0) {
+    std::cerr << "failed to obtain device state: " << rc << std::endl;
+    if (rc == -2) {
+      std::cerr << xsens.error() << std::endl;
+    }
+  }
+  xsens.dumpDeviceState(std::cout);
+  std::cout << std::endl << std::endl;
+
+  // start measurement mode
+  xsens.goToMeasurement();
 
   uint8_t endpoint_in, endpoint_out;
   // Find more information on this device. What interfaces are available?
@@ -132,7 +158,69 @@ int main( int arc, char **argv ) {
     demo::OffboardData data;
     data.set_hour(counter);
 
+    int rc = xsens.readData();
+    if (rc == -1) {
+      std::cerr << "error: " << strerror(errno) << std::endl;
+      break;
+    }
+    if (rc > 0) {
+      unsigned char cmd;
+      while ((cmd = xsens.parseData()) != 0) {
+        switch (cmd)
+        {
+        case kn::XSensCmd::Error:
+          std::cout << "error = " << xsens.error() << std::endl;
+          break;
+        case kn::XSensCmd::MTData:
+          if (xsens.config().dataLength.value > 0) {
+
+	    demo::Orientation * orientation = data.mutable_orientation();
+	    demo::Velocity * vel = data.mutable_velocity();
+	    demo::Acceleration * acc = data.mutable_acceleration();
+	    demo::Magnetic * mag = data.mutable_magnetic();
+	    demo::Gyro * gyro = data.mutable_gyro();
+
+	    acc->set_x(xsens.calibratedData().acc.xyz[0]);
+	    acc->set_y(xsens.calibratedData().acc.xyz[1]);
+	    acc->set_z(xsens.calibratedData().acc.xyz[2]);
+
+	    gyro->set_x(xsens.calibratedData().gyr.xyz[0]);
+	    gyro->set_y(xsens.calibratedData().gyr.xyz[1]);
+	    gyro->set_z(xsens.calibratedData().gyr.xyz[2]);
+
+	    mag->set_x(xsens.calibratedData().mag.xyz[0]);
+	    mag->set_y(xsens.calibratedData().mag.xyz[1]);
+	    mag->set_z(xsens.calibratedData().mag.xyz[2]);
+
+	    vel->set_x( xsens.velocityData().xyz[0]);
+	    vel->set_y( xsens.velocityData().xyz[1]);
+	    vel->set_z( xsens.velocityData().xyz[2]);
+
+	    orientation->set_x(xsens.orientationData().rpy[0]);
+	    orientation->set_y(xsens.orientationData().rpy[1]);
+	    orientation->set_z(xsens.orientationData().rpy[2]);
+	    /*
+            printf("Temperature:\t%3.6f\n", xsens.temperatureData().value);
+	    std::stringstream status;
+            status << xsens.statusData();
+            printf("Status:\t%s\n", status.str().c_str());
+	    */
+          }
+          break;
+        case 0xff:
+	  std::cout << "more parsing" << std::endl;
+          break;
+        default:
+	  std::cout << "cmd - 0x" << std::hex << (int)cmd << std::dec << std::endl;
+        }
+      }
+    }
+
     std::string array = data.SerializeAsString();
+    std::string debugString = data.DebugString();
+
+    std::cout << "DebugString = " << debugString << std::endl;
+
     //std::string array = "Monkey";
     //array += "\n";
 
@@ -151,6 +239,8 @@ int main( int arc, char **argv ) {
     sleep(1);
     counter += 0.1;
   }
+
+  xsens.goToConfig();
 
   // Disconnect
   libusb_unref_device( dev );

@@ -23,8 +23,8 @@ source.pb.cc:
 usb_search: usb_search.o AndroidUSB.o
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
-Demo001: source.pb.o AndroidUSB.o Demo001.o
-	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS) -lprotobuf-lite
+Demo001: source.pb.o AndroidUSB.o Demo001.o serialstream.o XSensData.o XSens.o
+	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS) -lprotobuf
 
 clean:
 	rm -f *.o *~ usb_search source.pb.cc source.pb.h
